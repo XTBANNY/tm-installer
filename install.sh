@@ -8,9 +8,27 @@ set -e
 
 TOKEN=""
 DEVICE_NAME=""
-BINARY_URL="https://github.com/XTBANNY/tm-installer/releases/latest/download/traffmonetizer"
 INSTALL_DIR="/usr/local/bin"
 SERVICE_FILE="/etc/systemd/system/traffmonetizer.service"
+
+# Detect architecture
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64|amd64)
+        BINARY_NAME="traffmonetizer_linux_amd64"
+        ;;
+    aarch64|arm64)
+        BINARY_NAME="traffmonetizer_linux_arm64"
+        ;;
+    *)
+        echo "ERROR: Unsupported architecture: $ARCH"
+        echo "Supported: x86_64/amd64, aarch64/arm64"
+        exit 1
+        ;;
+esac
+
+GITHUB_BASE="https://github.com/XTBANNY/tm-installer/releases/latest/download"
+BINARY_URL="${GITHUB_BASE}/${BINARY_NAME}"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -56,16 +74,14 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-# Check architecture
-ARCH=$(uname -m)
-if [[ "$ARCH" != "x86_64" ]]; then
-    echo "WARNING: Architecture $ARCH detected. Only x86_64 is officially supported."
-    read -p "Continue anyway? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
+# Verify architecture is supported
+if [[ "$ARCH" != "x86_64" && "$ARCH" != "amd64" && "$ARCH" != "aarch64" && "$ARCH" != "arm64" ]]; then
+    echo "ERROR: Unsupported architecture: $ARCH"
+    echo "Supported: x86_64, amd64, aarch64, arm64"
+    exit 1
 fi
+
+echo "Detected architecture: $ARCH ($BINARY_NAME)"
 
 # Check if already installed
 if [[ -f "$INSTALL_DIR/traffmonetizer" ]]; then
@@ -77,9 +93,9 @@ fi
 # Download binary
 echo "[1/4] Downloading binary..."
 TMPDIR=$(mktemp -d)
-curl -sSL -f -o "$TMPDIR/traffmonetizer" "$BINARY_URL"
+curl -sSL -f -o "$TMPDIR/$BINARY_NAME" "$BINARY_URL"
 
-if [[ ! -f "$TMPDIR/traffmonetizer" ]] || [[ ! -x "$TMPDIR/traffmonetizer" ]]; then
+if [[ ! -f "$TMPDIR/$BINARY_NAME" ]] || [[ ! -x "$TMPDIR/$BINARY_NAME" ]]; then
     echo "ERROR: Download failed. Please check your network connection and try again."
     echo "You can also download manually from:"
     echo "  https://github.com/XTBANNY/tm-installer/releases"
@@ -87,19 +103,19 @@ if [[ ! -f "$TMPDIR/traffmonetizer" ]] || [[ ! -x "$TMPDIR/traffmonetizer" ]]; t
     exit 1
 fi
 
-FILE_SIZE=$(stat -c%s "$TMPDIR/traffmonetizer" 2>/dev/null || echo 0)
+FILE_SIZE=$(stat -c%s "$TMPDIR/$BINARY_NAME" 2>/dev/null || echo 0)
 if [[ "$FILE_SIZE" -lt 1000000 ]]; then
     echo "ERROR: Downloaded file is too small (${FILE_SIZE} bytes). Download may have failed."
     rm -rf "$TMPDIR"
     exit 1
 fi
 
-echo "  Downloaded: $(du -h "$TMPDIR/traffmonetizer" | cut -f1)"
+echo "  Downloaded: $(du -h "$TMPDIR/$BINARY_NAME" | cut -f1)"
 
 # Install binary
 echo "[2/4] Installing binary..."
-chmod +x "$TMPDIR/traffmonetizer"
-mv "$TMPDIR/traffmonetizer" "$INSTALL_DIR/traffmonetizer"
+chmod +x "$TMPDIR/$BINARY_NAME"
+mv "$TMPDIR/$BINARY_NAME" "$INSTALL_DIR/traffmonetizer"
 rm -rf "$TMPDIR"
 
 # Create systemd service

@@ -2,7 +2,7 @@
 
 一键部署脚本，在 Linux 服务器上安装 [TraffMonetizer](https://traffmonetizer.com/) 流量共享客户端。
 
-> **注意**: 由于部分 VPS 的 Docker 环境存在 seccomp 限制（如 Proxmox VE kernel），容器无法运行。本方案采用**二进制直接安装**，兼容所有 Linux x86_64 系统。
+> **注意**: 由于部分 VPS 的 Docker 环境存在 seccomp 限制（如 Proxmox VE kernel），容器无法运行。本方案采用**二进制直接安装**，兼容 **x86_64/amd64** 和 **ARM64/aarch64** 架构。
 
 ## 使用方法
 
@@ -69,7 +69,8 @@ systemctl daemon-reload
 
 ## 系统要求
 
-- OS: Linux x86_64 (Debian/Ubuntu/CentOS/Fedora/Alpine 等)
+- OS: Linux (Debian/Ubuntu/CentOS/Fedora/Alpine 等)
+- 架构: x86_64/amd64 或 ARM64/aarch64
 - 权限: root (或 sudo)
 - 网络: 需要访问互联网下载二进制文件
 
