@@ -97,27 +97,37 @@ TMPDIR=$(mktemp -d)
 # Download from GitHub with retries and fallback to mirror
 DOWNLOAD_SUCCESS=false
 for attempt in 1 2 3; do
-    echo "  Attempt $attempt/3..."
-    if curl -sSL -f -L -o "$TMPDIR/$ASSET_NAME" "$BINARY_URL" 2>/dev/null; then
-        if [[ -f "$TMPDIR/$ASSET_NAME" ]] && [[ $(stat -c%s "$TMPDIR/$ASSET_NAME" 2>/dev/null || echo 0) -gt 1000000 ]]; then
-            DOWNLOAD_SUCCESS=true
-            break
-        fi
+    echo "  Attempt $attempt/3 from GitHub..."
+    TMPDL=$(mktemp -d)
+    curl -sSL -f -L --connect-timeout 10 --max-time 60 -o "$TMPDL/raw_dl" "$BINARY_URL" 2>/dev/null
+    if [[ -f "$TMPDL/raw_dl" ]] && [[ $(stat -c%s "$TMPDL/raw_dl" 2>/dev/null || echo 0) -gt 1000000 ]]; then
+        mv "$TMPDL/raw_dl" "$TMPDIR/$ASSET_NAME"
+        DOWNLOAD_SUCCESS=true
     fi
+    rm -rf "$TMPDL"
+    if [[ "$DOWNLOAD_SUCCESS" == "true" ]]; then
+        break
+    fi
+    echo "  Attempt $attempt failed, retrying..."
     sleep 2
 done
 
 # If GitHub fails, try mirror
 if [[ "$DOWNLOAD_SUCCESS" != "true" ]]; then
-    echo "  Trying mirror fallback..."
+    echo "  GitHub download failed, trying mirror fallback..."
     MIRROR_BASE="https://mirror.ghproxy.com/https://github.com"
     for attempt in 1 2; do
-        if curl -sSL -f -L -o "$TMPDIR/$ASSET_NAME" "${MIRROR_BASE}${BINARY_URL}" 2>/dev/null; then
-            if [[ -f "$TMPDIR/$ASSET_NAME" ]] && [[ $(stat -c%s "$TMPDIR/$ASSET_NAME" 2>/dev/null || echo 0) -gt 1000000 ]]; then
-                DOWNLOAD_SUCCESS=true
-                echo "  Mirror download succeeded"
-                break
-            fi
+        echo "  Mirror attempt $attempt..."
+        TMPDL=$(mktemp -d)
+        curl -sSL -f -L --connect-timeout 10 --max-time 60 -o "$TMPDL/raw_dl" "${MIRROR_BASE}${BINARY_URL}" 2>/dev/null
+        if [[ -f "$TMPDL/raw_dl" ]] && [[ $(stat -c%s "$TMPDL/raw_dl" 2>/dev/null || echo 0) -gt 1000000 ]]; then
+            mv "$TMPDL/raw_dl" "$TMPDIR/$ASSET_NAME"
+            DOWNLOAD_SUCCESS=true
+            echo "  Mirror download succeeded"
+        fi
+        rm -rf "$TMPDL"
+        if [[ "$DOWNLOAD_SUCCESS" == "true" ]]; then
+            break
         fi
         sleep 1
     done
