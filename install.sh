@@ -93,12 +93,27 @@ fi
 # Download binary
 echo "[1/4] Downloading binary..."
 TMPDIR=$(mktemp -d)
-curl -sSL -f -o "$TMPDIR/$ASSET_NAME" "$BINARY_URL"
+
+# Try GitHub CDN first, then raw release URL
+curl -sSL -f -L -o "$TMPDIR/$ASSET_NAME" "$BINARY_URL" 2>/dev/null
+if [[ ! -f "$TMPDIR/$ASSET_NAME" ]] || [[ $(stat -c%s "$TMPDIR/$ASSET_NAME" 2>/dev/null || echo 0) -lt 1000 ]]; then
+    # Retry with different URL format
+    curl -sSL -f -L -o "$TMPDIR/$ASSET_NAME" "https://github.com/XTBANNY/tm-installer/releases/latest/download/${ASSET_NAME}" 2>/dev/null
+fi
 
 if [[ ! -f "$TMPDIR/$ASSET_NAME" ]] || [[ ! -x "$TMPDIR/$ASSET_NAME" ]]; then
-    echo "ERROR: Download failed. Please check your network connection and try again."
-    echo "You can also download manually from:"
-    echo "  https://github.com/XTBANNY/tm-installer/releases"
+    echo "ERROR: Download failed from GitHub."
+    echo "This usually means the release asset is not available."
+    echo ""
+    echo "Manual installation steps:"
+    echo "1. Download from: https://github.com/XTBANNY/tm-installer/releases"
+    echo "2. Upload to server: scp traffmonetizer root@your-server:/tmp/"
+    echo "3. Install manually:"
+    echo "   cp /tmp/traffmonetizer /usr/local/bin/"
+    echo "   chmod +x /usr/local/bin/traffmonetizer"
+    echo ""
+    echo "Or try direct download (China mainland workaround):"
+    echo "   wget -O /tmp/traffmonetizer \"https://mirror.ghproxy.com/https://github.com/XTBANNY/tm-installer/releases/latest/download/traffmonetizer\""
     rm -rf "$TMPDIR"
     exit 1
 fi
