@@ -94,25 +94,45 @@ fi
 echo "[1/4] Downloading binary..."
 TMPDIR=$(mktemp -d)
 
-# Try GitHub CDN first, then raw release URL
-curl -sSL -f -L -o "$TMPDIR/$ASSET_NAME" "$BINARY_URL" 2>/dev/null
-if [[ ! -f "$TMPDIR/$ASSET_NAME" ]] || [[ $(stat -c%s "$TMPDIR/$ASSET_NAME" 2>/dev/null || echo 0) -lt 1000 ]]; then
-    # Retry with different URL format
-    curl -sSL -f -L -o "$TMPDIR/$ASSET_NAME" "https://github.com/XTBANNY/tm-installer/releases/latest/download/${ASSET_NAME}" 2>/dev/null
+# Download from GitHub with retries and fallback to mirror
+DOWNLOAD_SUCCESS=false
+for attempt in 1 2 3; do
+    echo "  Attempt $attempt/3..."
+    if curl -sSL -f -L -o "$TMPDIR/$ASSET_NAME" "$BINARY_URL" 2>/dev/null; then
+        if [[ -f "$TMPDIR/$ASSET_NAME" ]] && [[ $(stat -c%s "$TMPDIR/$ASSET_NAME" 2>/dev/null || echo 0) -gt 1000000 ]]; then
+            DOWNLOAD_SUCCESS=true
+            break
+        fi
+    fi
+    sleep 2
+done
+
+# If GitHub fails, try mirror
+if [[ "$DOWNLOAD_SUCCESS" != "true" ]]; then
+    echo "  Trying mirror fallback..."
+    MIRROR_BASE="https://mirror.ghproxy.com/https://github.com"
+    for attempt in 1 2; do
+        if curl -sSL -f -L -o "$TMPDIR/$ASSET_NAME" "${MIRROR_BASE}${BINARY_URL}" 2>/dev/null; then
+            if [[ -f "$TMPDIR/$ASSET_NAME" ]] && [[ $(stat -c%s "$TMPDIR/$ASSET_NAME" 2>/dev/null || echo 0) -gt 1000000 ]]; then
+                DOWNLOAD_SUCCESS=true
+                echo "  Mirror download succeeded"
+                break
+            fi
+        fi
+        sleep 1
+    done
 fi
 
-if [[ ! -f "$TMPDIR/$ASSET_NAME" ]] || [[ ! -x "$TMPDIR/$ASSET_NAME" ]]; then
-    echo "ERROR: Download failed from GitHub."
-    echo "This usually means the release asset is not available."
+if [[ "$DOWNLOAD_SUCCESS" != "true" ]]; then
+    echo "ERROR: All download attempts failed."
     echo ""
-    echo "Manual installation steps:"
-    echo "1. Download from: https://github.com/XTBANNY/tm-installer/releases"
-    echo "2. Upload to server: scp traffmonetizer root@your-server:/tmp/"
-    echo "3. Install manually:"
-    echo "   cp /tmp/traffmonetizer /usr/local/bin/"
-    echo "   chmod +x /usr/local/bin/traffmonetizer"
+    echo "Manual installation:"
+    echo "1. Download binary:"
+    echo "   cd /tmp && curl -sSL -O https://github.com/XTBANNY/tm-installer/releases/latest/download/traffmonetizer"
+    echo "2. Install:"
+    echo "   chmod +x traffmonetizer && mv traffmonetizer /usr/local/bin/"
     echo ""
-    echo "Or try direct download (China mainland workaround):"
+    echo "Or use mirror (for China mainland):"
     echo "   wget -O /tmp/traffmonetizer \"https://mirror.ghproxy.com/https://github.com/XTBANNY/tm-installer/releases/latest/download/traffmonetizer\""
     rm -rf "$TMPDIR"
     exit 1
