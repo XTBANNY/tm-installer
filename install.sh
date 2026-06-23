@@ -15,10 +15,10 @@ SERVICE_FILE="/etc/systemd/system/traffmonetizer.service"
 ARCH=$(uname -m)
 case "$ARCH" in
     x86_64|amd64)
-        BINARY_NAME="traffmonetizer_linux_amd64"
+        ASSET_NAME="traffmonetizer"
         ;;
     aarch64|arm64)
-        BINARY_NAME="traffmonetizer_linux_arm64"
+        ASSET_NAME="traffmonetizer_linux_arm64"
         ;;
     *)
         echo "ERROR: Unsupported architecture: $ARCH"
@@ -28,7 +28,7 @@ case "$ARCH" in
 esac
 
 GITHUB_BASE="https://github.com/XTBANNY/tm-installer/releases/latest/download"
-BINARY_URL="${GITHUB_BASE}/${BINARY_NAME}"
+BINARY_URL="${GITHUB_BASE}/${ASSET_NAME}"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -81,7 +81,7 @@ if [[ "$ARCH" != "x86_64" && "$ARCH" != "amd64" && "$ARCH" != "aarch64" && "$ARC
     exit 1
 fi
 
-echo "Detected architecture: $ARCH ($BINARY_NAME)"
+echo "Detected architecture: $ARCH ($ASSET_NAME)"
 
 # Check if already installed
 if [[ -f "$INSTALL_DIR/traffmonetizer" ]]; then
@@ -93,9 +93,9 @@ fi
 # Download binary
 echo "[1/4] Downloading binary..."
 TMPDIR=$(mktemp -d)
-curl -sSL -f -o "$TMPDIR/$BINARY_NAME" "$BINARY_URL"
+curl -sSL -f -o "$TMPDIR/$ASSET_NAME" "$BINARY_URL"
 
-if [[ ! -f "$TMPDIR/$BINARY_NAME" ]] || [[ ! -x "$TMPDIR/$BINARY_NAME" ]]; then
+if [[ ! -f "$TMPDIR/$ASSET_NAME" ]] || [[ ! -x "$TMPDIR/$ASSET_NAME" ]]; then
     echo "ERROR: Download failed. Please check your network connection and try again."
     echo "You can also download manually from:"
     echo "  https://github.com/XTBANNY/tm-installer/releases"
@@ -103,19 +103,19 @@ if [[ ! -f "$TMPDIR/$BINARY_NAME" ]] || [[ ! -x "$TMPDIR/$BINARY_NAME" ]]; then
     exit 1
 fi
 
-FILE_SIZE=$(stat -c%s "$TMPDIR/$BINARY_NAME" 2>/dev/null || echo 0)
+FILE_SIZE=$(stat -c%s "$TMPDIR/$ASSET_NAME" 2>/dev/null || echo 0)
 if [[ "$FILE_SIZE" -lt 1000000 ]]; then
     echo "ERROR: Downloaded file is too small (${FILE_SIZE} bytes). Download may have failed."
     rm -rf "$TMPDIR"
     exit 1
 fi
 
-echo "  Downloaded: $(du -h "$TMPDIR/$BINARY_NAME" | cut -f1)"
+echo "  Downloaded: $(du -h "$TMPDIR/$ASSET_NAME" | cut -f1)"
 
 # Install binary
 echo "[2/4] Installing binary..."
-chmod +x "$TMPDIR/$BINARY_NAME"
-mv "$TMPDIR/$BINARY_NAME" "$INSTALL_DIR/traffmonetizer"
+chmod +x "$TMPDIR/$ASSET_NAME"
+mv "$TMPDIR/$ASSET_NAME" "$INSTALL_DIR/traffmonetizer"
 rm -rf "$TMPDIR"
 
 # Create systemd service
